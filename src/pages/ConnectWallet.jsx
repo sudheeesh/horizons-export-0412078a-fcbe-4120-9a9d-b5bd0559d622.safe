@@ -6,12 +6,9 @@ export default function ConnectWallet() {
     const [providerName, setProviderName] = useState('');
     const [error, setError] = useState('');
 
-    useEffect(() => { }, []); // garde SSR
+    useEffect(() => {}, []); // guard SSR
 
-    const dappUrl = () => {
-        if (typeof window === 'undefined') return '';
-        return window.location.href;
-    };
+    const dappUrl = () => (typeof window === 'undefined' ? '' : window.location.href);
     const hostNoProtocol = () => dappUrl().replace(/^https?:\/\//, '');
 
     function getEthProvider(flag) {
@@ -32,7 +29,7 @@ export default function ConnectWallet() {
                 setAccount(accs[0] || '');
             } catch (e) { setError(e?.message || String(e)); }
         } else {
-            window.open(`https://link.metamask.io/dapp/${hostNoProtocol()}`, '_blank'); // mobile deeplink
+            window.open(`https://link.metamask.io/dapp/${hostNoProtocol()}`, '_blank');
         }
     }
 
@@ -47,7 +44,7 @@ export default function ConnectWallet() {
             } catch (e) { setError(e?.message || String(e)); }
         } else {
             const url = encodeURIComponent(dappUrl());
-            window.open(`https://go.cb-w.com/dapp?cb_url=${url}`, '_blank'); // mobile deeplink
+            window.open(`https://go.cb-w.com/dapp?cb_url=${url}`, '_blank');
         }
     }
 
@@ -70,7 +67,7 @@ export default function ConnectWallet() {
                     return;
                 } catch (e) { setError(e?.message || String(e)); return; }
             }
-            window.open('https://www.binance.com/en/web3wallet', '_blank'); // fallback page
+            window.open('https://www.binance.com/en/web3wallet', '_blank');
         }
     }
 
@@ -86,7 +83,7 @@ export default function ConnectWallet() {
         } else {
             const url = encodeURIComponent(dappUrl());
             const ref = encodeURIComponent(dappUrl());
-            window.open(`https://phantom.app/ul/browse/${url}?ref=${ref}`, '_blank'); // mobile deeplink
+            window.open(`https://phantom.app/ul/browse/${url}?ref=${ref}`, '_blank');
         }
     }
 
@@ -96,43 +93,34 @@ export default function ConnectWallet() {
         setError('');
     }
 
-    // --------------------- Payment Function ---------------------
-    async function payWithCrypto() {
+    // --------------------- Payment Functions ---------------------
+    async function payWithEth() {
         try {
-            if (!account) {
-                setError("Connect a wallet first");
-                return;
-            }
+            if (!account) { setError("Connect a wallet first"); return; }
 
-            const mm = getEthProvider('isMetaMask') || getEthProvider('isCoinbaseWallet') || window.BinanceChain;
-            if (!mm) {
-                setError("No Ethereum provider found");
-                return;
-            }
+            const ethProvider = getEthProvider('isMetaMask') || getEthProvider('isCoinbaseWallet') || window.BinanceChain;
+            if (!ethProvider) { setError("No Ethereum provider found"); return; }
 
-            // Replace with your business wallet address
-            const recipient = "0x1234567890abcdef1234567890abcdef12345678";
-            const amountInEth = "0.01"; // Example: 0.01 ETH
+            const recipient = "0x1234567890abcdef1234567890abcdef12345678"; // business wallet
+            const amountInEth = "0.01";
 
             const tx = {
                 from: account,
                 to: recipient,
-                value: `0x${(BigInt(Math.floor(parseFloat(amountInEth) * 1e18))).toString(16)}`, // in wei
+                value: `0x${(BigInt(Math.floor(parseFloat(amountInEth) * 1e18))).toString(16)}`,
             };
 
-            const txHash = await mm.request({
-                method: 'eth_sendTransaction',
-                params: [tx],
-            });
-
-            alert(`Payment sent! Tx Hash: ${txHash}`);
-        } catch (err) {
-            setError(err?.message || String(err));
-        }
+            const txHash = await ethProvider.request({ method: 'eth_sendTransaction', params: [tx] });
+            alert(`ETH Payment sent! Tx Hash: ${txHash}`);
+        } catch (err) { setError(err?.message || String(err)); }
     }
 
+    function payWithBTC() {
+        // Open BTCPay invoice page
+        const invoiceUrl = "https://btcpay.example.com/invoice?id=YOUR_INVOICE_ID"; // Replace with your BTCPay invoice URL
+        window.open(invoiceUrl, "_blank");
+    }
 
-    // --------------------- JSX ---------------------
     return (
         <div style={{ maxWidth: 720, margin: '48px auto', padding: 24, borderRadius: 16, background: '#0b1220', color: '#fff' }}>
             <h2 style={{ fontSize: 24, marginBottom: 16 }}>Choisis ton wallet</h2>
@@ -148,17 +136,15 @@ export default function ConnectWallet() {
                 <div style={{ marginTop: 16 }}>
                     <div style={{ opacity: 0.8, fontSize: 13 }}>{providerName} connecté</div>
                     <div style={{ fontFamily: 'monospace', marginTop: 6 }}>{account}</div>
-                    
-                    <button onClick={disconnect} style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8 }}>
-                        Déconnecter
+
+                    <button onClick={disconnect} style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8 }}>Déconnecter</button>
+
+                    <button onClick={payWithEth} style={{ marginTop: 10, padding: '10px 16px', borderRadius: 8, background: '#4ade80', color: '#000' }}>
+                        Pay 0.01 ETH
                     </button>
 
-                    {/* Payment Button */}
-                    <button 
-                        onClick={payWithCrypto} 
-                        style={{ marginTop: 10, padding: '10px 16px', borderRadius: 8, background: '#4ade80', color: '#000' }}
-                    >
-                        Pay 0.01 ETH
+                    <button onClick={payWithBTC} style={{ marginTop: 10, padding: '10px 16px', borderRadius: 8, background: '#f7931a', color: '#000' }}>
+                        Pay with Bitcoin
                     </button>
                 </div>
             )}
