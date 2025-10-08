@@ -131,6 +131,7 @@ export default function ConnectWallet() {
         }
     }
 
+
     // --------------------- JSX ---------------------
     return (
         <div style={{ maxWidth: 720, margin: '48px auto', padding: 24, borderRadius: 16, background: '#0b1220', color: '#fff' }}>

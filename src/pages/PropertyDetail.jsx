@@ -5,6 +5,11 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { TrendingUp, Building2, MapPin, Users, Star, DollarSign, Minus, Plus, Bitcoin } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { QRCodeCanvas } from 'qrcode.react';
+
+
+
+const BTC_ADDRESS = "7560e711-94ed-4d72-9d98-21137a9acaac"
 
 const properties = [
     { id: 1, name: "Burj Khalifa Penthouse", location: "Downtown Dubai", image_alt: "Luxurious penthouse in the iconic Burj Khalifa with panoramic city views", totalValue: 150000000, tokenPrice: 15000, availableTokens: 2500, totalTokens: 10000, apy: 12.5, trend: "up", rating: 4.9, investors: 847, description: { en: "An unparalleled luxury penthouse at the top of the world, offering 360-degree views of Dubai. High-end finishes, private pool, and 24/7 concierge services.", fr: "Un penthouse de luxe inégalé au sommet du monde, offrant des vues à 360 degrés sur Dubaï. Finitions haut de gamme, piscine privée et services de conciergerie 24/7." } },
@@ -40,6 +45,19 @@ const PropertyDetail = () => {
         );
     }
     
+     const totalPrice = property.tokenPrice * tokenAmount;
+    const BTC_AMOUNT = (totalPrice / 60000).toFixed(8); // BTC conversion example
+    const btcURI = `bitcoin:${BTC_ADDRESS}?amount=${BTC_AMOUNT}`;
+    const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+
+    const handlePurchaseBTC = () => {
+        navigator.clipboard.writeText(BTC_ADDRESS);
+        toast({
+            title: "BTC Address Copied!",
+            description: `Send ${BTC_AMOUNT} BTC to: ${BTC_ADDRESS}`,
+        });
+    };
+
     const handlePurchase = () => {
         toast({
             title: t('propertyDetail.purchaseToastTitle').replace('{tokenAmount}', tokenAmount),
@@ -47,8 +65,6 @@ const PropertyDetail = () => {
         });
     }
 
-    const totalPrice = property.tokenPrice * tokenAmount;
-    const locale = language === 'fr' ? 'fr-FR' : 'en-US';
 
     return (
         <motion.div
@@ -123,13 +139,18 @@ const PropertyDetail = () => {
                         <div className="bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-600 rounded-lg p-4 text-center text-black mb-6">
                             <p className="font-semibold">{t('propertyDetail.totalPrice')}</p>
                             <p className="text-3xl font-bold">${totalPrice.toLocaleString(locale)}</p>
-                            <p className="text-sm opacity-80">~ {(totalPrice / 60000).toFixed(4)} BTC</p>
+                            <p className="text-sm opacity-80">~ {BTC_AMOUNT} BTC</p>
                         </div>
                         
-                        <Button onClick={handlePurchase} size="lg" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg">
+                        {/* BTC Payment */}
+                        <Button onClick={handlePurchaseBTC} size="lg" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg mb-4">
                             <Bitcoin className="w-5 h-5 mr-3" />
                             {t('propertyDetail.payWithBitcoin')}
                         </Button>
+                           <div className="text-center">
+                            <QRCodeCanvas value={btcURI} size={150} />
+                            <p className="mt-2 font-mono break-all">{BTC_ADDRESS}</p>
+                        </div>
                     </motion.div>
                 </div>
             </div>
