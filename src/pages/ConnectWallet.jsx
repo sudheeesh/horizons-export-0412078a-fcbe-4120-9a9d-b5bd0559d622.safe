@@ -72,20 +72,36 @@ export default function ConnectWallet() {
     }
 
     async function connectPhantom() {
-        setError('');
-        const sol = typeof window !== 'undefined' ? window.solana : null;
-        if (sol?.isPhantom) {
-            try {
-                const resp = await sol.connect();
-                setProviderName('Phantom');
-                setAccount(resp?.publicKey?.toString?.() || '');
-            } catch (e) { setError(e?.message || String(e)); }
+    setError('');
+    const sol = typeof window !== 'undefined' ? window.solana : null;
+
+    if (!sol) {
+        setError('Phantom Wallet not found! Please install Phantom.');
+        const dappURL = encodeURIComponent(window.location.href);
+        window.open(`https://phantom.app/ul/browse/${dappURL}?ref=${dappURL}`, '_blank');
+        return;
+    }
+
+    if (!sol.isPhantom) {
+        setError('Detected wallet is not Phantom.');
+        return;
+    }
+
+    try {
+        // Only show popup if not already connected
+        const resp = await sol.connect({ onlyIfTrusted: false });
+        setProviderName('Phantom');
+        setAccount(resp?.publicKey?.toString() || '');
+    } catch (err) {
+        if (err.code === 4001) {
+            // User rejected the connection
+            setError('Connection to Phantom was rejected by the user.');
         } else {
-            const url = encodeURIComponent(dappUrl());
-            const ref = encodeURIComponent(dappUrl());
-            window.open(`https://phantom.app/ul/browse/${url}?ref=${ref}`, '_blank');
+            setError(err?.message || String(err));
         }
     }
+}
+
 
     function disconnect() {
         setAccount('');
