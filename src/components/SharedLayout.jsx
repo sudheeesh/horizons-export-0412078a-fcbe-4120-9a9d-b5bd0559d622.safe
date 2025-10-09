@@ -82,16 +82,17 @@ const SharedLayout = () => {
               <>
                 {/* Settings Dropdown (Hover) */}
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xl md:text-2xl font-bold gold-gradient"
-                      onMouseEnter={e => e.currentTarget.parentNode.open = true} // open on hover
-                    >
-                      ⚙️ {t("settings") || "Settings"}
-                    </Button>
+                 <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xl md:text-2xl font-bold gold-gradient"
+                  onMouseEnter={e => e.currentTarget.parentNode.open = true} // open on hover
+                            >
+                        ⚙️ <span className="hidden md:inline">{t("settings") || "Settings"}</span>
+                       </Button>
                   </DropdownMenuTrigger>
+
                   <DropdownMenuContent
                     className="bg-gray-900 text-white border border-gray-700 rounded-md shadow-md"
                     onMouseLeave={e => e.currentTarget.parentNode.open = false} // close on leave
