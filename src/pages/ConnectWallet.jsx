@@ -9,9 +9,6 @@ export default function ConnectWallet() {
   // SSR guard
   useEffect(() => {}, []);
 
-  const dappUrl = () => (typeof window !== 'undefined' ? window.location.href : '');
-  const hostNoProtocol = () => dappUrl().replace(/^https?:\/\//, '');
-
   const getEthProvider = (flag) => {
     if (typeof window === 'undefined') return null;
     const eth = window.ethereum;
@@ -21,84 +18,60 @@ export default function ConnectWallet() {
     return null;
   };
 
-  // ----------- Wallet Connectors -----------
-
+  // Connect wallets
   const connectMetaMask = async () => {
     setError('');
     const mm = getEthProvider('isMetaMask');
-    if (mm) {
-      try {
-        const accs = await mm.request({ method: 'eth_requestAccounts' });
-        setProviderName('MetaMask');
-        setAccount(accs[0] || '');
-      } catch (e) {
-        setError(e?.message || String(e));
-      }
-    } else {
-      window.open(`https://link.metamask.io/dapp/${hostNoProtocol()}`, '_blank');
+    if (!mm) return window.open(`https://metamask.io/download.html`, '_blank');
+
+    try {
+      const accs = await mm.request({ method: 'eth_requestAccounts' });
+      setProviderName('MetaMask');
+      setAccount(accs[0]);
+    } catch (e) {
+      setError(e?.message || String(e));
     }
   };
 
   const connectCoinbase = async () => {
     setError('');
     const cb = getEthProvider('isCoinbaseWallet');
-    if (cb) {
-      try {
-        const accs = await cb.request({ method: 'eth_requestAccounts' });
-        setProviderName('Coinbase Wallet');
-        setAccount(accs[0] || '');
-      } catch (e) {
-        setError(e?.message || String(e));
-      }
-    } else {
-      const url = encodeURIComponent(dappUrl());
-      window.open(`https://go.cb-w.com/dapp?cb_url=${url}`, '_blank');
+    if (!cb) return window.open('https://www.coinbase.com/wallet', '_blank');
+
+    try {
+      const accs = await cb.request({ method: 'eth_requestAccounts' });
+      setProviderName('Coinbase Wallet');
+      setAccount(accs[0]);
+    } catch (e) {
+      setError(e?.message || String(e));
     }
   };
 
   const connectBinance = async () => {
     setError('');
-    const bnc = typeof window !== 'undefined' ? window.BinanceChain : null;
-    if (bnc?.request) {
-      try {
-        const accs = await bnc.request({ method: 'eth_requestAccounts' });
-        setProviderName('Binance Wallet');
-        setAccount(accs[0] || '');
-      } catch (e) {
-        setError(e?.message || String(e));
-      }
-    } else {
-      const prov = getEthProvider('isBinance') || getEthProvider('isTrust') || getEthProvider('isToshi');
-      if (prov) {
-        try {
-          const accs = await prov.request({ method: 'eth_requestAccounts' });
-          setProviderName('Binance/Injected');
-          setAccount(accs[0] || '');
-          return;
-        } catch (e) {
-          setError(e?.message || String(e));
-          return;
-        }
-      }
-      window.open('https://www.binance.com/en/web3wallet', '_blank');
+    const bnc = window.BinanceChain;
+    if (!bnc) return window.open('https://www.binance.com/en/web3wallet', '_blank');
+
+    try {
+      const accs = await bnc.request({ method: 'eth_requestAccounts' });
+      setProviderName('Binance Wallet');
+      setAccount(accs[0]);
+    } catch (e) {
+      setError(e?.message || String(e));
     }
   };
 
   const connectPhantom = async () => {
     setError('');
-    const sol = typeof window !== 'undefined' ? window.solana : null;
-    if (sol?.isPhantom) {
-      try {
-        const resp = await sol.connect();
-        setProviderName('Phantom');
-        setAccount(resp?.publicKey?.toString?.() || '');
-      } catch (e) {
-        setError(e?.message || String(e));
-      }
-    } else {
-      // open Phantom mobile deeplink
-      const url = encodeURIComponent(dappUrl());
-      window.open(`https://phantom.app/ul/browse/${url}?ref=${url}`, '_blank');
+    const sol = window.solana;
+    if (!sol?.isPhantom) return window.open('https://phantom.app/', '_blank');
+
+    try {
+      const resp = await sol.connect();
+      setProviderName('Phantom');
+      setAccount(resp.publicKey.toString());
+    } catch (e) {
+      setError(e?.message || String(e));
     }
   };
 
@@ -108,24 +81,19 @@ export default function ConnectWallet() {
     setError('');
   };
 
-  // ----------- Payments -----------
-
-  const payWithEth = async () => {
-    setError('');
+  // Payments
+  const payWithEth = async (amount = 0.01) => {
     if (!account) return setError('Connect a wallet first');
 
     const ethProvider = getEthProvider('isMetaMask') || getEthProvider('isCoinbaseWallet') || window.BinanceChain;
     if (!ethProvider) return setError('No Ethereum wallet found');
 
     try {
-      const recipient = '0x1234567890abcdef1234567890abcdef12345678';
-      const amountInEth = '0.01';
       const tx = {
         from: account,
-        to: recipient,
-        value: `0x${(BigInt(Math.floor(parseFloat(amountInEth) * 1e18))).toString(16)}`,
+        to: '0x1234567890abcdef1234567890abcdef12345678', // Replace with your address
+        value: `0x${(BigInt(Math.floor(amount * 1e18))).toString(16)}`,
       };
-
       const txHash = await ethProvider.request({ method: 'eth_sendTransaction', params: [tx] });
       alert(`ETH Payment sent! Tx Hash: ${txHash}`);
     } catch (err) {
@@ -133,46 +101,47 @@ export default function ConnectWallet() {
     }
   };
 
-  const payWithBTC = () => {
-    const invoiceUrl = 'https://btcpay.example.com/invoice?id=YOUR_INVOICE_ID';
-    window.open(invoiceUrl, '_blank');
+  const payWithSol = async (amount = 0.01) => {
+    const sol = window.solana;
+    if (!sol?.isPhantom) return setError('Phantom wallet not detected');
+
+    try {
+      const { publicKey } = sol;
+      const transactionUrl = `solana:${publicKey}?amount=${amount}`;
+      window.location.href = transactionUrl;
+    } catch (err) {
+      setError(err?.message || String(err));
+    }
   };
 
-  // ----------- JSX -----------
-
   return (
-    <div style={{ maxWidth: 720, margin: '48px auto', padding: 24, borderRadius: 16, background: '#0b1220', color: '#fff' }}>
-      <h2 style={{ fontSize: 24, marginBottom: 16 }}>Choisis ton wallet</h2>
+    <div className="max-w-md mx-auto mt-12 p-6 bg-gray-900 rounded-xl text-white">
+      <h2 className="text-2xl font-bold mb-4">Connect Wallet</h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12 }}>
-        <button onClick={connectMetaMask} style={{ padding: '12px 16px', borderRadius: 10 }}>MetaMask</button>
-        <button onClick={connectCoinbase} style={{ padding: '12px 16px', borderRadius: 10 }}>Coinbase Wallet</button>
-        <button onClick={connectPhantom} style={{ padding: '12px 16px', borderRadius: 10 }}>Phantom</button>
-        <button onClick={connectBinance} style={{ padding: '12px 16px', borderRadius: 10 }}>Binance Wallet</button>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <button onClick={connectMetaMask} className="p-3 rounded bg-orange-500 hover:bg-orange-600">MetaMask</button>
+        <button onClick={connectCoinbase} className="p-3 rounded bg-blue-500 hover:bg-blue-600">Coinbase</button>
+        <button onClick={connectPhantom} className="p-3 rounded bg-purple-500 hover:bg-purple-600">Phantom</button>
+        <button onClick={connectBinance} className="p-3 rounded bg-yellow-500 hover:bg-yellow-600">Binance</button>
       </div>
 
       {account && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ opacity: 0.8, fontSize: 13 }}>{providerName} connecté</div>
-          <div style={{ fontFamily: 'monospace', marginTop: 6 }}>{account}</div>
-
-          <button onClick={disconnect} style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8 }}>Déconnecter</button>
-
-          <button onClick={payWithEth} style={{ marginTop: 10, padding: '10px 16px', borderRadius: 8, background: '#4ade80', color: '#000' }}>
-            Pay 0.01 ETH
-          </button>
-
-          <button onClick={payWithBTC} style={{ marginTop: 10, padding: '10px 16px', borderRadius: 8, background: '#f7931a', color: '#000' }}>
-            Pay with Bitcoin
-          </button>
+        <div className="mt-4 p-4 border border-gray-700 rounded-lg bg-gray-800">
+          <p className="text-sm mb-1">Connected with {providerName}</p>
+          <p className="font-mono break-all mb-3">{account}</p>
+          <div className="flex gap-3 flex-wrap">
+            <button onClick={disconnect} className="px-3 py-1 rounded bg-red-500 hover:bg-red-600">Disconnect</button>
+            <button onClick={() => payWithEth(0.01)} className="px-3 py-1 rounded bg-green-400 hover:bg-green-500">Pay 0.01 ETH</button>
+            <button onClick={() => payWithSol(0.01)} className="px-3 py-1 rounded bg-purple-400 hover:bg-purple-500">Pay 0.01 SOL</button>
+          </div>
         </div>
       )}
 
-      {error && <div style={{ color: '#fda4a4', marginTop: 12 }}>{error}</div>}
-
-      <div style={{ opacity: 0.6, fontSize: 12, marginTop: 18 }}>
-        Sur mobile, les liens ouvrent ton site dans le navigateur intégré du wallet. Sur desktop, l’extension connecte.
-      </div>
+      {error && <p className="text-red-400 mt-3">{error}</p>}
+      <p className="text-gray-400 text-xs mt-4">
+        On mobile, links open in your wallet browser. On desktop, connect using extensions.
+      </p>
     </div>
   );
 }
+

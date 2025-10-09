@@ -3,14 +3,13 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
 import { MapPin, Minus, Plus, Bitcoin, DollarSign } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { QRCodeCanvas } from 'qrcode.react';
 
-const BTC_ADDRESS = "7560e711-94ed-4d72-9d98-21137a9acaac"; // ✅ real BTC address
-const ETH_ADDRESS = "0xF2a96e3C6A3a1c6a213460a1b294b2B6415Ba833"; // ✅ your ETH wallet
-const SOL_ADDRESS = "7dYfExampleSolAddress1234567890AbCdEfGh";   // ✅ your Solana wallet
+const BTC_ADDRESS = "7560e711-94ed-4d72-9d98-21137a9acaac";
+const ETH_ADDRESS = "0xF2a96e3C6A3a1c6a213460a1b294b2B6415Ba833";
+const SOL_ADDRESS = "7dYfExampleSolAddress1234567890AbCdEfGh";
 
 const properties = [
   { id: 1, name: "Burj Khalifa Penthouse", location: "Downtown Dubai", tokenPrice: 15000, availableTokens: 2500, description: { en: "Luxury penthouse.", fr: "Penthouse de luxe." } },
@@ -28,6 +27,9 @@ const PropertyDetail = () => {
   const property = properties.find(p => p.id === parseInt(id));
   const [tokenAmount, setTokenAmount] = useState(1);
 
+  // Modal control
+  const [modalData, setModalData] = useState(null);
+
   if (!property) {
     return (
       <div className="text-center py-20">
@@ -38,62 +40,58 @@ const PropertyDetail = () => {
   }
 
   const totalPrice = property.tokenPrice * tokenAmount;
-  const BTC_AMOUNT = (totalPrice / 60000).toFixed(8); // Example: 1 BTC = $60,000
-  const ETH_AMOUNT = (totalPrice / 2000).toFixed(6); // Example: 1 ETH = $2,000
-  const SOL_AMOUNT = (totalPrice / 150).toFixed(3);  // Example: 1 SOL = $150
-
+  const BTC_AMOUNT = (totalPrice / 60000).toFixed(8);
+  const ETH_AMOUNT = (totalPrice / 2000).toFixed(6);
+  const SOL_AMOUNT = (totalPrice / 150).toFixed(3);
   const btcURI = `bitcoin:${BTC_ADDRESS}?amount=${BTC_AMOUNT}&label=${encodeURIComponent(property.name)}`;
+  const ethURI = `ethereum:${ETH_ADDRESS}?value=${(ETH_AMOUNT * 1e18).toString()}&label=${encodeURIComponent(property.name)}`;
+  const solURI = `solana:${SOL_ADDRESS}?amount=${SOL_AMOUNT}&label=${encodeURIComponent(property.name)}`;
   const locale = language === 'fr' ? 'fr-FR' : 'en-US';
 
   // ---------------- BTC Payment ----------------
-// ---------------- BTC Payment ----------------
-const handlePurchaseBTC = () => {
-  const btcURI = `bitcoin:${BTC_ADDRESS}?amount=${BTC_AMOUNT}&label=${encodeURIComponent(property.name)}`;
+  const handlePurchaseBTC = () => {
+    window.location.href = btcURI;
+    setTimeout(() => {
+      setModalData({
+        title: "BTC Payment Info",
+        amount: `${BTC_AMOUNT} BTC`,
+        address: BTC_ADDRESS,
+        uri: btcURI
+      });
+    }, 1500);
+  };
 
-  // Try to open wallet app
-  window.location.href = btcURI;
+  // ---------------- ETH Payment ----------------
+  const handlePurchaseETH = () => {
+    window.location.href = ethURI;
+    setTimeout(() => {
+      setModalData({
+        title: "ETH Payment Info",
+        amount: `${ETH_AMOUNT} ETH`,
+        address: ETH_ADDRESS,
+        uri: ethURI
+      });
+    }, 1500);
+  };
 
-  // Fallback if no wallet detected
-  setTimeout(() => {
-    toast({
-      title: "BTC Payment Info",
-      description: `If your wallet did not open, send ${BTC_AMOUNT} BTC to: ${BTC_ADDRESS}`,
-    });
-  }, 1500);
-};
-
-// ---------------- ETH Payment ----------------
-const handlePurchaseETH = () => {
-  const ethURI = `ethereum:${ETH_ADDRESS}?value=${(ETH_AMOUNT * 1e18).toString()}&label=${encodeURIComponent(property.name)}`;
-
-  window.location.href = ethURI;
-
-  setTimeout(() => {
-    toast({
-      title: "ETH Payment Info",
-      description: `If your wallet did not open, send ${ETH_AMOUNT} ETH to: ${ETH_ADDRESS}`,
-    });
-  }, 1500);
-};
-
-// ---------------- SOL Payment ----------------
-const handlePurchaseSOL = () => {
-  const solURI = `solana:${SOL_ADDRESS}?amount=${SOL_AMOUNT}&label=${encodeURIComponent(property.name)}`;
-
-  window.location.href = solURI;
-
-  setTimeout(() => {
-    toast({
-      title: "SOL Payment Info",
-      description: `If your wallet did not open, send ${SOL_AMOUNT} SOL to: ${SOL_ADDRESS}`,
-    });
-  }, 1500);
-};
+  // ---------------- SOL Payment ----------------
+  const handlePurchaseSOL = () => {
+    window.location.href = solURI;
+    setTimeout(() => {
+      setModalData({
+        title: "SOL Payment Info",
+        amount: `${SOL_AMOUNT} SOL`,
+        address: SOL_ADDRESS,
+        uri: solURI
+      });
+    }, 1500);
+  };
 
   return (
     <motion.div className="max-w-7xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Left */}
+        
+        {/* Left Side */}
         <div className="lg:col-span-3">
           <motion.div className="rounded-2xl overflow-hidden h-96 w-full glass-effect border border-gray-800"
             initial={{ opacity: 0, scale: 0.9 }}
@@ -101,6 +99,7 @@ const handlePurchaseSOL = () => {
             transition={{ duration: 0.5 }}>
             <img className="w-full h-full object-cover" alt={property.name} src={`https://via.placeholder.com/800x400?text=${property.name}`} />
           </motion.div>
+
           <motion.div className="mt-8 glass-effect rounded-2xl p-6 border border-gray-800"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -110,7 +109,7 @@ const handlePurchaseSOL = () => {
           </motion.div>
         </div>
 
-        {/* Right */}
+        {/* Right Side */}
         <div className="lg:col-span-2">
           <motion.div className="glass-effect rounded-2xl p-6 border border-gray-800 sticky top-28"
             initial={{ opacity: 0, scale: 0.9 }}
@@ -147,7 +146,7 @@ const handlePurchaseSOL = () => {
               </p>
             </div>
 
-            {/* BTC, ETH & SOL Payment */}
+            {/* Payment Buttons */}
             <div className="space-y-3">
               <Button onClick={handlePurchaseBTC} size="lg" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg">
                 <Bitcoin className="w-5 h-5 mr-3" /> {t('propertyDetail.payWithBitcoin')}
@@ -162,16 +161,34 @@ const handlePurchaseSOL = () => {
 
             {/* BTC QR */}
             <div className="text-center mt-4">
-              <QRCodeCanvas value={btcURI} size={180} />
+      
               <p className="mt-2 font-mono break-all">{BTC_ADDRESS}</p>
               <p className="mt-1 font-semibold">{BTC_AMOUNT} BTC</p>
             </div>
           </motion.div>
         </div>
       </div>
+
+      {/* Modal */}
+      {modalData && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-6 rounded-2xl text-white max-w-md shadow-2xl">
+            <h2 className="text-xl font-bold mb-2">{modalData.title}</h2>
+            <p>Send <span className="font-semibold text-yellow-400">{modalData.amount}</span> to:</p>
+            <p className="font-mono break-all text-yellow-400 mt-2">{modalData.address}</p>
+            <div className="mt-4 flex justify-center">
+              <QRCodeCanvas value={modalData.uri} size={150} />
+            </div>
+            <Button className="mt-4 w-full bg-orange-500 hover:bg-orange-600" onClick={() => setModalData(null)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
 
 export default PropertyDetail;
+
 ;
