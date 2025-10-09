@@ -18,6 +18,43 @@ export default function ConnectWallet() {
     return null;
   };
 
+  // Listen for Ethereum account changes
+  useEffect(() => {
+    const eth = window.ethereum;
+    if (!eth) return;
+
+    const handleAccountsChanged = (accounts) => {
+      if (accounts.length) {
+        setAccount(accounts[0]);
+      } else {
+        setAccount('');
+        setProviderName('');
+      }
+    };
+
+    eth.on('accountsChanged', handleAccountsChanged);
+
+    return () => {
+      eth.removeListener('accountsChanged', handleAccountsChanged);
+    };
+  }, []);
+
+  // Listen for Phantom account changes
+  useEffect(() => {
+    const sol = window.solana;
+    if (!sol?.isPhantom) return;
+
+    const handlePhantomChange = (publicKey) => {
+      setAccount(publicKey?.toString() || '');
+    };
+
+    sol.on('accountChanged', handlePhantomChange);
+
+    return () => {
+      sol.removeListener('accountChanged', handlePhantomChange);
+    };
+  }, []);
+
   // Connect wallets
   const connectMetaMask = async () => {
     setError('');
@@ -79,6 +116,7 @@ export default function ConnectWallet() {
     setAccount('');
     setProviderName('');
     setError('');
+    // Wallets themselves remember connection; user must switch account in wallet
   };
 
   // Payments
