@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Minus, Plus, Bitcoin, DollarSign } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { QRCodeCanvas } from 'qrcode.react';
+import { Transaction, SystemProgram, LAMPORTS_PER_SOL, Connection, clusterApiUrl, PublicKey } from '@solana/web3.js';
 
 const BTC_ADDRESS = "7560e711-94ed-4d72-9d98-21137a9acaac";
 const ETH_ADDRESS = "0xF2a96e3C6A3a1c6a213460a1b294b2B6415Ba833";
@@ -26,8 +27,6 @@ const PropertyDetail = () => {
   const { t, language } = useTranslation();
   const property = properties.find(p => p.id === parseInt(id));
   const [tokenAmount, setTokenAmount] = useState(1);
-
-  // Modal control
   const [modalData, setModalData] = useState(null);
 
   if (!property) {
@@ -43,54 +42,88 @@ const PropertyDetail = () => {
   const BTC_AMOUNT = (totalPrice / 60000).toFixed(8);
   const ETH_AMOUNT = (totalPrice / 2000).toFixed(6);
   const SOL_AMOUNT = (totalPrice / 150).toFixed(3);
+
   const btcURI = `bitcoin:${BTC_ADDRESS}?amount=${BTC_AMOUNT}&label=${encodeURIComponent(property.name)}`;
   const ethURI = `ethereum:${ETH_ADDRESS}?value=${(ETH_AMOUNT * 1e18).toString()}&label=${encodeURIComponent(property.name)}`;
-  const solURI = `solana:${SOL_ADDRESS}?amount=${SOL_AMOUNT}&label=${encodeURIComponent(property.name)}`;
   const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+
+  // Utility: get Ethereum provider (MetaMask / Coinbase / Binance)
+  const getEthProvider = () => {
+    if (typeof window === 'undefined') return null;
+    const eth = window.ethereum;
+    if (!eth) return null;
+    if (eth.isMetaMask || eth.isCoinbaseWallet) return eth;
+    if (window.BinanceChain) return window.BinanceChain;
+    return null;
+  };
 
   // ---------------- BTC Payment ----------------
   const handlePurchaseBTC = () => {
-    window.location.href = btcURI;
-    setTimeout(() => {
-      setModalData({
-        title: "BTC Payment Info",
-        amount: `${BTC_AMOUNT} BTC`,
-        address: BTC_ADDRESS,
-        uri: btcURI
-      });
-    }, 1500);
+    setModalData({
+      title: "BTC Payment Info",
+      amount: `${BTC_AMOUNT} BTC`,
+      address: BTC_ADDRESS,
+      uri: btcURI
+    });
   };
 
   // ---------------- ETH Payment ----------------
-  const handlePurchaseETH = () => {
-    window.location.href = ethURI;
-    setTimeout(() => {
-      setModalData({
-        title: "ETH Payment Info",
-        amount: `${ETH_AMOUNT} ETH`,
-        address: ETH_ADDRESS,
-        uri: ethURI
-      });
-    }, 1500);
+  const handlePurchaseETH = async () => {
+    const provider = getEthProvider();
+    if (!provider) return setModalData({
+      title: "ETH Payment Info",
+      amount: `${ETH_AMOUNT} ETH`,
+      address: ETH_ADDRESS,
+      uri: ethURI
+    });
+
+    try {
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      const tx = {
+        from: accounts[0],
+        to: ETH_ADDRESS,
+        value: `0x${(BigInt(Math.floor(ETH_AMOUNT * 1e18))).toString(16)}`
+      };
+      const txHash = await provider.request({ method: 'eth_sendTransaction', params: [tx] });
+      alert(`ETH Payment sent! Tx Hash: ${txHash}`);
+    } catch (err) {
+      alert(`ETH Payment failed: ${err?.message || err}`);
+    }
   };
 
   // ---------------- SOL Payment ----------------
-  const handlePurchaseSOL = () => {
-    window.location.href = solURI;
-    setTimeout(() => {
-      setModalData({
-        title: "SOL Payment Info",
-        amount: `${SOL_AMOUNT} SOL`,
-        address: SOL_ADDRESS,
-        uri: solURI
-      });
-    }, 1500);
+  const handlePurchaseSOL = async () => {
+    const sol = window.solana;
+    if (!sol?.isPhantom) return alert('Phantom wallet not detected');
+
+    try {
+      const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
+      const receiverPubKey = new PublicKey(SOL_ADDRESS);
+
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: sol.publicKey,
+          toPubkey: receiverPubKey,
+          lamports: Math.round(parseFloat(SOL_AMOUNT) * LAMPORTS_PER_SOL),
+        })
+      );
+
+      transaction.feePayer = sol.publicKey;
+      transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
+
+      const signed = await sol.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(signature, 'confirmed');
+
+      alert(`SOL Payment sent! Tx Signature: ${signature}`);
+    } catch (err) {
+      alert(`SOL Payment failed: ${err?.message || err}`);
+    }
   };
 
   return (
     <motion.div className="max-w-7xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        
         {/* Left Side */}
         <div className="lg:col-span-3">
           <motion.div className="rounded-2xl overflow-hidden h-96 w-full glass-effect border border-gray-800"
@@ -115,7 +148,7 @@ const PropertyDetail = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.1 }}>
-            
+
             <h1 className="text-3xl font-bold text-white mb-1">{property.name}</h1>
             <div className="flex items-center text-gray-400 text-md mb-6">
               <MapPin className="w-4 h-4 mr-2" /> {property.location}
@@ -159,17 +192,11 @@ const PropertyDetail = () => {
               </Button>
             </div>
 
-            {/* BTC QR */}
-            <div className="text-center mt-4">
-      
-              <p className="mt-2 font-mono break-all">{BTC_ADDRESS}</p>
-              <p className="mt-1 font-semibold">{BTC_AMOUNT} BTC</p>
-            </div>
           </motion.div>
         </div>
       </div>
 
-      {/* Modal */}
+      {/* BTC Modal */}
       {modalData && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-gray-900 p-6 rounded-2xl text-white max-w-md shadow-2xl">
@@ -191,4 +218,4 @@ const PropertyDetail = () => {
 
 export default PropertyDetail;
 
-;
+
